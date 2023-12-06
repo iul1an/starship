@@ -20,11 +20,15 @@ struct KubeCtxComponents {
 fn get_current_kube_context_name(filename: path::PathBuf) -> Option<String> {
     let contents = utils::read_file(filename).ok()?;
 
+    let kubie_active = env::var("KUBIE_ACTIVE").map_or(false, |v| v == "1"); // true only if KUBIE_ACTIVE is set and equals "1"
+    let exclude_pattern = env::var("STARSHIP_EXCLUDE_KUBE_CTX").unwrap_or_default();
+    let exclude_regex = regex::Regex::new(&exclude_pattern).unwrap_or_else(|_| regex::Regex::new("^$").unwrap()); // default to a regex that matches nothing
+
     let yaml_docs = YamlLoader::load_from_str(&contents).ok()?;
     let conf = yaml_docs.first()?;
     conf["current-context"]
         .as_str()
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.is_empty() && (kubie_active || !exclude_regex.is_match(s)))
         .map(String::from)
 }
 
